@@ -1,69 +1,99 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useMemo } from "react";
+import { useNow } from "@/hooks/useNow";
+import { useDaySchedule } from "@/hooks/useSchedule";
+import { usePlannerStore } from "@/lib/store/plannerStore";
+import { todayKey, weekDates, weekStartKey, dateKey } from "@/lib/time";
+import { computeDailyStats, currentAndNextBlock, dayProgress } from "@/lib/scheduler/stats";
+import { GreetingHeader } from "@/components/dashboard/GreetingHeader";
+import { CurrentActivityCard } from "@/components/dashboard/CurrentActivityCard";
+import { StatsGrid } from "@/components/dashboard/StatsGrid";
+import { QuickSetupCard } from "@/components/dashboard/QuickSetupCard";
+import { WeeklyOverviewCard } from "@/components/dashboard/WeeklyOverviewCard";
+import { WeeklyStudyChart } from "@/components/dashboard/WeeklyStudyChart";
+import { TodoPreviewCard } from "@/components/dashboard/TodoPreviewCard";
+import { TimelineList } from "@/components/dashboard/TimelineList";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+
+export default function DashboardPage() {
+  const date = todayKey();
+  const now = useNow();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const { blocks, week } = useDaySchedule(date);
+  const getDayInput = usePlannerStore((s) => s.getDayInput);
+  const days = usePlannerStore((s) => s.days);
+  const settings = usePlannerStore((s) => s.settings);
+  const todos = usePlannerStore((s) => s.todos);
+  // getDayInput builds a fresh default object when there's no stored entry —
+  // memoize so the identity is stable across renders (avoids re-render loops
+  // in Zustand selectors and unnecessary child re-renders).
+  const dayInput = useMemo(
+    () => getDayInput(date),
+    // getDayInput closes over the store's days/settings via get(), so both
+    // must stay in the deps even though the linter can't see that.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getDayInput, date, days, settings]
+  );
+
+  const stats = computeDailyStats(date, blocks);
+  const { current, next } = currentAndNextBlock(blocks, nowMin);
+  const progress = dayProgress(nowMin, settings.sleep.wakeMinutes, settings.sleep.sleepMinutes);
+
+  const tasksTotal = todos.length;
+  const tasksDone = todos.filter((t) => t.completed).length;
+  const weekDatesList = weekDates(weekStartKey(new Date(date + "T00:00:00"))).map(dateKey);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="pt-2">
+      <GreetingHeader dateKey={date} />
+
+      <div className="mb-4">
+        <div className="mb-1.5 flex justify-between text-[11px] text-[var(--text-faint)]">
+          <span>Day progress</span>
+          <span>{progress}%</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <ProgressBar value={progress} max={100} color="var(--accent)" height={6} />
+      </div>
+
+      {/* Single column on mobile (natural DOM order); a balanced 2-column
+          dashboard on desktop via explicit grid placement below. */}
+      <div className="lg:grid lg:grid-cols-[1.3fr_1fr] lg:items-start lg:gap-x-6">
+        <div className="lg:col-start-1 lg:row-start-1">
+          <CurrentActivityCard current={current} next={next} nowMin={nowMin} />
         </div>
-      </main>
+
+        <div className="lg:col-start-1 lg:row-start-2">
+          <StatsGrid
+            workMinutes={stats.workMinutes}
+            studyMinutes={stats.studyMinutes}
+            freeMinutes={stats.freeMinutes}
+            tasksDone={tasksDone}
+            tasksTotal={tasksTotal}
+          />
+        </div>
+
+        <div className="lg:col-start-2 lg:row-start-1">
+          <QuickSetupCard date={date} dayInput={dayInput} />
+        </div>
+
+        <div className="lg:col-start-2 lg:row-start-2">
+          <WeeklyOverviewCard week={week} />
+        </div>
+
+        <div className="lg:col-start-2 lg:row-start-3">
+          <WeeklyStudyChart dates={weekDatesList} studyByDate={week.studyUsedByDate} />
+        </div>
+
+        <div className="lg:col-start-2 lg:row-start-4">
+          <TodoPreviewCard todayKey={date} />
+        </div>
+
+        <div className="mb-2 lg:col-start-1 lg:row-start-3">
+          <h3 className="mb-3 text-sm font-semibold tracking-tight">Today&apos;s Timeline</h3>
+          <TimelineList blocks={blocks} nowMin={nowMin} />
+        </div>
+      </div>
     </div>
   );
 }
