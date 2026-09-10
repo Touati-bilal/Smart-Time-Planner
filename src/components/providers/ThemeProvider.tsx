@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
+  applyStatusBarStyle,
   applyThemeAttribute,
   resolveTheme,
   ResolvedTheme,
@@ -38,8 +39,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
     setSystemDark(systemPrefersDark());
 
+    // The OS status bar (clock/battery) always follows the system's actual
+    // Light/Dark Mode, independent of whichever theme is picked in-app.
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    applyStatusBarStyle(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => {
+      setSystemDark(e.matches);
+      applyStatusBarStyle(e.matches);
+    };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);

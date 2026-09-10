@@ -36,3 +36,35 @@ export const THEME_INIT_SCRIPT = `
   } catch (e) {}
 })();
 `;
+
+/**
+ * iOS's apple-mobile-web-app-status-bar-style has no "auto" value, so when
+ * the app is installed to the home screen the OS status bar (clock/battery)
+ * never tracks Light/Dark Mode on its own — it must be set explicitly. This
+ * runs before first paint (like THEME_INIT_SCRIPT) so the status bar matches
+ * the *system* appearance from the first frame, deliberately independent of
+ * whichever in-app theme the user has picked. ThemeProvider keeps it in sync
+ * afterwards if the OS setting changes while the app stays open.
+ */
+export const STATUS_BAR_INIT_SCRIPT = `
+(function () {
+  try {
+    applyStatusBarStyle(window.matchMedia("(prefers-color-scheme: dark)").matches);
+  } catch (e) {}
+  function applyStatusBarStyle(dark) {
+    var meta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "apple-mobile-web-app-status-bar-style");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", dark ? "black" : "default");
+  }
+})();
+`;
+
+export function applyStatusBarStyle(systemDark: boolean) {
+  if (typeof document === "undefined") return;
+  const meta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (meta) meta.setAttribute("content", systemDark ? "black" : "default");
+}
