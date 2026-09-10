@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
 /* ============================================================
-   PLANIN design tokens — light is the default brand expression
-   (white + violet), dark mirrors the same identity on a deep
-   near-black ground. Tokens are redefined per theme below.
+   PLANIN design tokens — dark (deep near-black + violet) is the
+   app's default brand expression; light mirrors the same identity
+   on a white ground for users who opt into it. Tokens are
+   redefined per theme below. The bare :root block is the light
+   palette (used as a fallback/base), overridden by data-theme.
    ============================================================ */
 
 :root {

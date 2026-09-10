@@ -20,7 +20,10 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePreference>("system");
+  // Dark is the app's default (matches THEME_INIT_SCRIPT): a first-ever
+  // visit with nothing in localStorage stays dark rather than following
+  // the OS preference.
+  const [theme, setThemeState] = useState<ThemePreference>("dark");
   const [systemDark, setSystemDark] = useState(false);
 
   useEffect(() => {
@@ -30,7 +33,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-    if (stored === "light" || stored === "dark") {
+    if (stored === "light" || stored === "dark" || stored === "system") {
       // Deliberate: syncs React state with localStorage (an external system) on
       // mount, after SSR — reading it during render would cause a hydration
       // mismatch since the server never sees localStorage.
@@ -58,8 +61,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = useCallback((t: ThemePreference) => {
     setThemeState(t);
     try {
-      if (t === "system") localStorage.removeItem(THEME_STORAGE_KEY);
-      else localStorage.setItem(THEME_STORAGE_KEY, t);
+      // Store "system" explicitly too, so it's distinguishable from a
+      // first-ever visit (nothing stored), which defaults to dark.
+      localStorage.setItem(THEME_STORAGE_KEY, t);
     } catch {
       // ignore
     }

@@ -25,6 +25,10 @@ export function applyThemeAttribute(pref: ThemePreference) {
 /**
  * Blocking script string injected before hydration so the correct theme
  * attribute is set before first paint (no flash of the wrong theme).
+ *
+ * Dark is the app's default: an explicit "system" or "light" choice is
+ * always honored, but a first-ever visit (nothing in localStorage yet)
+ * lands in dark rather than following the OS preference.
  */
 export const THEME_INIT_SCRIPT = `
 (function () {
@@ -32,6 +36,8 @@ export const THEME_INIT_SCRIPT = `
     var pref = localStorage.getItem("${THEME_STORAGE_KEY}");
     if (pref === "light" || pref === "dark") {
       document.documentElement.setAttribute("data-theme", pref);
+    } else if (pref !== "system") {
+      document.documentElement.setAttribute("data-theme", "dark");
     }
   } catch (e) {}
 })();
